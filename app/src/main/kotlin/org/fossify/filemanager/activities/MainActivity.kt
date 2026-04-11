@@ -11,6 +11,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager.widget.ViewPager
+import kotlinx.coroutines.launch
 import com.stericson.RootTools.RootTools
 import me.grantland.widget.AutofitHelper
 import org.fossify.commons.dialogs.RadioGroupDialog
