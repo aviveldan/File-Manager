@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.lifecycle.lifecycleScope
 import androidx.viewpager.widget.ViewPager
 import com.stericson.RootTools.RootTools
 import me.grantland.widget.AutofitHelper
@@ -624,7 +625,7 @@ class MainActivity : SimpleActivity() {
             generateButton.isEnabled = false
 
             val engine = LiteRtInferenceEngine(this@MainActivity)
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            lifecycleScope.launch {
                 try {
                     val result = engine.generateResponse(prompt)
                     outputText.text = result

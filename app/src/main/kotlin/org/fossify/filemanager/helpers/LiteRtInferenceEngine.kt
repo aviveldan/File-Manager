@@ -35,14 +35,16 @@ class LiteRtInferenceEngine(private val context: Context) : AiInferenceEngine {
             return uriString
         }
 
-        // It's a content URI — copy to cache
+        // It's a content URI — copy to cache only if needed
         val uri = Uri.parse(uriString)
         val cacheFile = File(context.cacheDir, "llm_model.task")
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            cacheFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
-        } ?: throw IllegalStateException("Cannot read model file from URI: $uriString")
+        if (!cacheFile.exists() || cacheFile.length() == 0L) {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                cacheFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            } ?: throw IllegalStateException("Cannot read model file from URI: $uriString")
+        }
 
         return cacheFile.absolutePath
     }
