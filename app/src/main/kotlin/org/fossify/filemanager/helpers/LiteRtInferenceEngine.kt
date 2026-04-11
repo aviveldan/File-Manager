@@ -10,11 +10,15 @@ import java.io.File
 
 class LiteRtInferenceEngine(private val context: Context) : AiInferenceEngine {
 
+    companion object {
+        private const val MAX_TOKENS = 512
+    }
+
     override suspend fun generateResponse(prompt: String): String = withContext(Dispatchers.IO) {
         val modelPath = resolveModelPath()
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelPath)
-            .setMaxTokens(512)
+            .setMaxTokens(MAX_TOKENS)
             .build()
 
         val llmInference = LlmInference.createFromOptions(context, options)
@@ -28,7 +32,7 @@ class LiteRtInferenceEngine(private val context: Context) : AiInferenceEngine {
     private fun resolveModelPath(): String {
         val prefs = context.getSharedPreferences(context.packageName, Context.MODE_PRIVATE)
         val uriString = prefs.getString(PREF_LOCAL_LLM_PATH, null)
-            ?: throw IllegalStateException("Model path not configured. Please set it in Settings.")
+            ?: error("Model path not configured. Please set it in Settings.")
 
         // If it's already an absolute file path (e.g. from tests), use it directly
         if (uriString.startsWith("/")) {
@@ -43,7 +47,7 @@ class LiteRtInferenceEngine(private val context: Context) : AiInferenceEngine {
                 cacheFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
-            } ?: throw IllegalStateException("Cannot read model file from URI: $uriString")
+            } ?: error("Cannot read model file from URI: $uriString")
         }
 
         return cacheFile.absolutePath

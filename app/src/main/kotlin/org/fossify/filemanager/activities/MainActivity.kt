@@ -630,7 +630,7 @@ class MainActivity : SimpleActivity() {
                 try {
                     val result = engine.generateResponse(prompt)
                     outputText.text = result
-                } catch (e: Exception) {
+                } catch (e: RuntimeException) {
                     outputText.text = getString(R.string.ai_error, e.message ?: "Unknown error")
                     toast(getString(R.string.ai_error, e.message ?: "Unknown error"))
                 } finally {
