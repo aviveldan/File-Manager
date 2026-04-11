@@ -37,6 +37,7 @@ android {
         versionCode = project.property("VERSION_CODE").toString().toInt()
         multiDexEnabled = true
         vectorDrawables.useSupportLibrary = true
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -146,4 +147,10 @@ dependencies {
     implementation(libs.autofittextview)
     implementation(libs.zip4j)
     detektPlugins(libs.compose.detekt)
+
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.uiautomator)
 }
