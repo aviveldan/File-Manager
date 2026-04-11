@@ -1,6 +1,5 @@
 package org.fossify.filemanager
 
-import android.os.Build
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
@@ -10,7 +9,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
-import androidx.test.uiautomator.UiSelector
 import org.fossify.filemanager.activities.MainActivity
 import org.junit.Before
 import org.junit.Rule
@@ -21,23 +19,17 @@ import org.junit.runner.RunWith
 @LargeTest
 class MainActivitySanityTest {
 
+    companion object {
+        private const val ACTIVITY_IDLE_TIMEOUT_MS = 5000L
+    }
+
     @get:Rule
     val activityRule = ActivityScenarioRule(MainActivity::class.java)
 
     @Before
-    fun dismissSystemDialogs() {
+    fun waitForActivity() {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-
-        // Dismiss "All files access" dialog if it appears (API 30+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val allowButton = device.findObject(UiSelector().textContains("Allow"))
-            if (allowButton.exists()) {
-                allowButton.click()
-            }
-        }
-
-        // Wait for the activity to settle
-        device.waitForIdle(3000)
+        device.waitForIdle(ACTIVITY_IDLE_TIMEOUT_MS)
     }
 
     @Test

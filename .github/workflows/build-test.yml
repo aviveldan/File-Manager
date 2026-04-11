@@ -27,8 +27,8 @@ jobs:
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleFossDebug
+      - name: Build Debug APK and Test APK
+        run: ./gradlew assembleFossDebug assembleFossDebugAndroidTest
 
       - name: Enable KVM (Hardware Acceleration for Linux Runner)
         run: |
@@ -45,7 +45,11 @@ jobs:
           disable-animations: true
           force-avd-creation: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
-          script: ./gradlew connectedFossDebugAndroidTest
+          script: |
+            # Install the app and grant MANAGE_EXTERNAL_STORAGE before running tests
+            adb install -r app/build/outputs/apk/foss/debug/*.apk
+            adb shell appops set org.fossify.filemanager.debug MANAGE_EXTERNAL_STORAGE allow
+            ./gradlew connectedFossDebugAndroidTest
 
       - name: Upload Debug APK
         if: always()
