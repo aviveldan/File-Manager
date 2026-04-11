@@ -146,6 +146,8 @@ dependencies {
     implementation(libs.gestureviews)
     implementation(libs.autofittextview)
     implementation(libs.zip4j)
+    implementation(libs.mediapipe.tasks.genai)
+    implementation(libs.kotlinx.coroutines.android)
     detektPlugins(libs.compose.detekt)
 
     androidTestImplementation(libs.androidx.test.ext.junit)

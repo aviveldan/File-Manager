@@ -36,6 +36,13 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Download Dummy Model for CI
+        run: |
+          # Download a tiny, stripped-down test model to avoid OOM in CI
+          wget -O dummy_gemma.task "https://storage.googleapis.com/mediapipe-tasks/genai/test_data/dummy_gemma.task" || true
+          # Fallback: if public dummy doesn't exist, create a mock file so tests fail gracefully rather than crashing runner
+          if [ ! -s dummy_gemma.task ]; then echo "mock_data" > dummy_gemma.task; fi
+
       - name: Run Instrumented Tests on Emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -46,6 +53,8 @@ jobs:
           force-avd-creation: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: |
+            # Push the dummy model to the emulator's temp directory
+            adb push dummy_gemma.task /data/local/tmp/dummy_gemma.task
             # Install the app and grant MANAGE_EXTERNAL_STORAGE before running tests
             adb install -r app/build/outputs/apk/foss/debug/*.apk
             adb shell appops set org.fossify.filemanager.debug MANAGE_EXTERNAL_STORAGE allow

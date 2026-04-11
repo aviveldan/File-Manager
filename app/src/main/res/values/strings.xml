@@ -53,6 +53,20 @@
     <string name="storage_free">free</string>
     <string name="total_storage">Total storage: %s</string>
 
+    <!-- AI Features -->
+    <string name="ai_features">AI Features</string>
+    <string name="local_llm_model_path">Local LLM Model Path</string>
+    <string name="local_llm_model_path_summary">Select a local model file (.task, .tflite, .bin)</string>
+    <string name="model_path_set">Model path saved</string>
+    <string name="model_path_not_set">Please set the model path in Settings first</string>
+    <string name="ai_test">AI Test</string>
+    <string name="ai_playground">AI Playground</string>
+    <string name="enter_prompt">Enter your prompt…</string>
+    <string name="generate">Generate</string>
+    <string name="ai_output_placeholder">Output will appear here</string>
+    <string name="generating">Generating…</string>
+    <string name="ai_error">AI Error: %s</string>
+
     <!-- Settings -->
     <string name="enable_root_access">Enable root access</string>
     <string name="press_back_twice">Require pressing Back twice to leave the app</string>

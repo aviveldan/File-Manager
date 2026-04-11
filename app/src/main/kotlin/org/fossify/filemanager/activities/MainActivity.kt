@@ -70,6 +70,8 @@ import org.fossify.filemanager.fragments.MyViewPagerFragment
 import org.fossify.filemanager.fragments.RecentsFragment
 import org.fossify.filemanager.fragments.StorageFragment
 import org.fossify.filemanager.helpers.MAX_COLUMN_COUNT
+import org.fossify.filemanager.helpers.PREF_LOCAL_LLM_PATH
+import org.fossify.filemanager.helpers.LiteRtInferenceEngine
 import org.fossify.filemanager.helpers.RootHelpers
 import org.fossify.filemanager.interfaces.ItemOperationsListener
 import java.io.File
@@ -253,6 +255,7 @@ class MainActivity : SimpleActivity() {
                     R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
                     R.id.settings -> launchSettings()
                     R.id.about -> launchAbout()
+                    R.id.ai_test -> openAiPlayground()
                     else -> return@setOnMenuItemClickListener false
                 }
                 return@setOnMenuItemClickListener true
@@ -592,6 +595,49 @@ class MainActivity : SimpleActivity() {
         }
 
         startAboutActivity(R.string.app_name, licenses, BuildConfig.VERSION_NAME, faqItems, true)
+    }
+
+    private fun openAiPlayground() {
+        val prefs = getSharedPreferences(packageName, MODE_PRIVATE)
+        val modelPath = prefs.getString(PREF_LOCAL_LLM_PATH, null)
+        if (modelPath.isNullOrEmpty()) {
+            toast(R.string.model_path_not_set)
+            return
+        }
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_ai_playground, null)
+        val promptInput = dialogView.findViewById<android.widget.EditText>(R.id.ai_prompt_input)
+        val outputText = dialogView.findViewById<android.widget.TextView>(R.id.ai_output_text)
+        val generateButton = dialogView.findViewById<android.widget.Button>(R.id.ai_generate_button)
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.ai_playground)
+            .setView(dialogView)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+
+        generateButton.setOnClickListener {
+            val prompt = promptInput.text.toString()
+            if (prompt.isBlank()) return@setOnClickListener
+
+            outputText.text = getString(R.string.generating)
+            generateButton.isEnabled = false
+
+            val engine = LiteRtInferenceEngine(this@MainActivity)
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                try {
+                    val result = engine.generateResponse(prompt)
+                    outputText.text = result
+                } catch (e: Exception) {
+                    outputText.text = getString(R.string.ai_error, e.message ?: "Unknown error")
+                    toast(getString(R.string.ai_error, e.message ?: "Unknown error"))
+                } finally {
+                    generateButton.isEnabled = true
+                }
+            }
+        }
+
+        dialog.show()
     }
 
     private fun checkIfRootAvailable() {

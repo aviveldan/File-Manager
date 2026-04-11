@@ -2,6 +2,7 @@ package org.fossify.filemanager.activities
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import org.fossify.commons.dialogs.ChangeDateTimeFormatDialog
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
@@ -13,12 +14,29 @@ import org.fossify.filemanager.R
 import org.fossify.filemanager.databinding.ActivitySettingsBinding
 import org.fossify.filemanager.dialogs.ManageVisibleTabsDialog
 import org.fossify.filemanager.extensions.config
+import org.fossify.filemanager.helpers.PREF_LOCAL_LLM_PATH
 import org.fossify.filemanager.helpers.RootHelpers
 import java.util.Locale
 import kotlin.system.exitProcess
 
 class SettingsActivity : SimpleActivity() {
     private val binding by viewBinding(ActivitySettingsBinding::inflate)
+
+    private val modelFilePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: SecurityException) {
+                // Permission may not be persistable for all providers
+            }
+            getSharedPreferences(packageName, MODE_PRIVATE)
+                .edit()
+                .putString(PREF_LOCAL_LLM_PATH, uri.toString())
+                .apply()
+            updateModelPathDisplay()
+            toast(R.string.model_path_set)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +67,7 @@ class SettingsActivity : SimpleActivity() {
         setupKeepLastModified()
         setupDeleteConfirmation()
         setupEnableRootAccess()
+        setupLocalLlmModelPath()
         updateTextColors(binding.settingsNestedScrollview)
 
         binding.apply {
@@ -58,7 +77,8 @@ class SettingsActivity : SimpleActivity() {
                 settingsVisibilityLabel,
                 settingsScrollingLabel,
                 settingsFileOperationsLabel,
-                settingsSecurityLabel
+                settingsSecurityLabel,
+                settingsAiFeaturesLabel
             ).forEach {
                 it.setTextColor(getProperPrimaryColor())
             }
@@ -271,5 +291,22 @@ class SettingsActivity : SimpleActivity() {
     private fun toggleRootAccess(enable: Boolean) {
         binding.settingsEnableRootAccess.isChecked = enable
         config.enableRootAccess = enable
+    }
+
+    private fun setupLocalLlmModelPath() {
+        updateModelPathDisplay()
+        binding.settingsLocalLlmModelPathHolder.setOnClickListener {
+            modelFilePicker.launch(arrayOf("*/*"))
+        }
+    }
+
+    private fun updateModelPathDisplay() {
+        val savedPath = getSharedPreferences(packageName, MODE_PRIVATE)
+            .getString(PREF_LOCAL_LLM_PATH, null)
+        binding.settingsLocalLlmModelPathValue.text = if (savedPath.isNullOrEmpty()) {
+            getString(R.string.local_llm_model_path_summary)
+        } else {
+            savedPath
+        }
     }
 }
