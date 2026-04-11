@@ -1,6 +1,5 @@
 package org.fossify.filemanager
 
-import android.Manifest
 import android.os.Build
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.assertion.ViewAssertions.matches
@@ -10,7 +9,6 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.rule.GrantPermissionRule
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiSelector
 import org.fossify.filemanager.activities.MainActivity
@@ -25,11 +23,6 @@ class MainActivitySanityTest {
 
     @get:Rule
     val activityRule = ActivityScenarioRule(MainActivity::class.java)
-
-    @get:Rule
-    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
-        Manifest.permission.WRITE_EXTERNAL_STORAGE
-    )
 
     @Before
     fun dismissSystemDialogs() {
@@ -72,7 +65,7 @@ class MainActivitySanityTest {
     }
 
     @Test
-    fun searchMenuIsDisplayed() {
+    fun mainMenuIsDisplayed() {
         onView(withId(R.id.main_menu))
             .check(matches(isDisplayed()))
     }
