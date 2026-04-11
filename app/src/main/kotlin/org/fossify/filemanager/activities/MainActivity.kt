@@ -599,6 +599,7 @@ class MainActivity : SimpleActivity() {
         startAboutActivity(R.string.app_name, licenses, BuildConfig.VERSION_NAME, faqItems, true)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun openAiPlayground() {
         val prefs = getSharedPreferences(packageName, MODE_PRIVATE)
         val modelPath = prefs.getString(PREF_LOCAL_LLM_PATH, null)
@@ -630,7 +631,7 @@ class MainActivity : SimpleActivity() {
                 try {
                     val result = engine.generateResponse(prompt)
                     outputText.text = result
-                } catch (e: RuntimeException) {
+                } catch (e: Exception) {
                     outputText.text = getString(R.string.ai_error, e.message ?: "Unknown error")
                     toast(getString(R.string.ai_error, e.message ?: "Unknown error"))
                 } finally {
