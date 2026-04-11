@@ -50,7 +50,7 @@ jobs:
             adb install -r app/build/outputs/apk/foss/debug/*.apk
             adb shell appops set org.fossify.filemanager.debug MANAGE_EXTERNAL_STORAGE allow
 
-            # Launch the app, wait for it to render, and capture a screenshot
+            # Launch the app and wait for it to fully render (splash + main activity)
             adb shell am start -n org.fossify.filemanager.debug/org.fossify.filemanager.activities.SplashActivity
             sleep 5
             mkdir -p screenshots
@@ -59,9 +59,9 @@ jobs:
             # Run the instrumented tests
             ./gradlew connectedFossDebugAndroidTest
 
-            # Capture a post-test screenshot
+            # Re-launch and capture a post-test screenshot
             adb shell am start -n org.fossify.filemanager.debug/org.fossify.filemanager.activities.SplashActivity
-            sleep 3
+            sleep 5
             adb exec-out screencap -p > screenshots/after-tests.png
 
       - name: Upload Emulator Screenshots
