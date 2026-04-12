@@ -632,8 +632,9 @@ class MainActivity : SimpleActivity() {
                     val result = engine.generateResponse(prompt)
                     outputText.text = result
                 } catch (e: Exception) {
-                    outputText.text = getString(R.string.ai_error, e.message ?: "Unknown error")
-                    toast(getString(R.string.ai_error, e.message ?: "Unknown error"))
+                    val errorMsg = cleanErrorMessage(e.message)
+                    outputText.text = getString(R.string.ai_error, errorMsg)
+                    toast(getString(R.string.ai_error, errorMsg))
                 } finally {
                     generateButton.isEnabled = true
                 }
@@ -641,6 +642,15 @@ class MainActivity : SimpleActivity() {
         }
 
         dialog.show()
+    }
+
+    private fun cleanErrorMessage(message: String?): String {
+        if (message.isNullOrBlank()) return "Unknown error"
+        // MediaPipe native errors contain C++ source traces that aren't useful for users
+        if (message.contains("Source Location Trace") || message.contains("third_party/")) {
+            return "Failed to load model. Please verify the model file is valid and compatible."
+        }
+        return message
     }
 
     private fun checkIfRootAvailable() {

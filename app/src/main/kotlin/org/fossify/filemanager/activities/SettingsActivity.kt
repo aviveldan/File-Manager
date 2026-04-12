@@ -29,9 +29,11 @@ class SettingsActivity : SimpleActivity() {
             } catch (_: SecurityException) {
                 // Permission may not be persistable for all providers
             }
+            // Resolve content URI to filesystem path to avoid copying large model files
+            val resolvedPath = getRealPathFromURI(uri) ?: uri.toString()
             getSharedPreferences(packageName, MODE_PRIVATE)
                 .edit()
-                .putString(PREF_LOCAL_LLM_PATH, uri.toString())
+                .putString(PREF_LOCAL_LLM_PATH, resolvedPath)
                 .apply()
             updateModelPathDisplay()
             toast(R.string.model_path_set)
