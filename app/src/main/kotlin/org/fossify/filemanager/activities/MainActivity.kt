@@ -86,6 +86,7 @@ class MainActivity : SimpleActivity() {
     companion object {
         private const val BACK_PRESS_TIMEOUT = 5000
         private const val PICKED_PATH = "picked_path"
+        private const val BYTES_PER_MB = 1_048_576L
     }
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
@@ -634,7 +635,7 @@ class MainActivity : SimpleActivity() {
                     val result = engine.generateResponse(prompt)
                     outputText.text = result
                 } catch (e: Exception) {
-                    val errorMsg = formatErrorMessage(e)
+                    val errorMsg = formatErrorMessage(e, modelPath)
                     outputText.text = getString(R.string.ai_error, errorMsg)
                 } finally {
                     generateButton.isEnabled = true
@@ -654,7 +655,7 @@ class MainActivity : SimpleActivity() {
         }
     }
 
-    private fun formatErrorMessage(e: Exception): String {
+    private fun formatErrorMessage(e: Exception, modelPath: String): String {
         val message = e.message ?: return "Unknown error"
         // Extract a user-friendly summary but keep technical details for debugging
         val summary = if (message.contains("Source Location Trace") || message.contains("third_party/")) {
@@ -662,8 +663,16 @@ class MainActivity : SimpleActivity() {
         } else {
             message.lines().firstOrNull { it.isNotBlank() } ?: message
         }
-        // Include the full technical details below the summary
-        return "$summary\n\nDetails: $message"
+        val fileInfo = try {
+            val file = java.io.File(modelPath)
+            val sizeMb = "%.1f".format(file.length().toDouble() / BYTES_PER_MB)
+            "Path: $modelPath\nExists: ${file.exists()}, Readable: ${file.canRead()}, " +
+                "Size: $sizeMb MB"
+        } catch (_: SecurityException) {
+            "Path: $modelPath (unable to check file)"
+        }
+        // Include file diagnostics and full technical details for debugging
+        return "$summary\n\n$fileInfo\n\nDetails: $message"
     }
 
     private fun checkIfRootAvailable() {

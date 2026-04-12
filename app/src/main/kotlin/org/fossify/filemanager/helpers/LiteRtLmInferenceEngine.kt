@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
+import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import kotlinx.coroutines.Dispatchers
@@ -20,18 +21,31 @@ class LiteRtLmInferenceEngine(private val context: Context) : AiInferenceEngine 
 
     override suspend fun generateResponse(prompt: String): String = withContext(Dispatchers.IO) {
         val modelPath = resolveModelPath()
+        validateModelFile(modelPath)
+
         val engineConfig = EngineConfig(
             modelPath = modelPath,
+            backend = Backend.CPU(),
             cacheDir = context.cacheDir.path,
         )
-        val engine = Engine(engineConfig)
-        engine.initialize()
-        try {
+        Engine(engineConfig).use { engine ->
+            engine.initialize()
             engine.createConversation().use { conversation ->
                 conversation.sendMessage(prompt).toString()
             }
-        } finally {
-            engine.close()
+        }
+    }
+
+    private fun validateModelFile(path: String) {
+        val file = File(path)
+        if (!file.exists()) {
+            error("Model file not found at: $path")
+        }
+        if (!file.canRead()) {
+            error("Model file is not readable (check storage permissions): $path")
+        }
+        if (file.length() == 0L) {
+            error("Model file is empty (0 bytes): $path")
         }
     }
 
