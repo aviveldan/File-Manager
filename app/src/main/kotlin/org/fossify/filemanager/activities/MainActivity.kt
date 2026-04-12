@@ -9,9 +9,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.lifecycle.lifecycleScope
 import androidx.viewpager.widget.ViewPager
-import kotlinx.coroutines.launch
 import com.stericson.RootTools.RootTools
 import me.grantland.widget.AutofitHelper
 import org.fossify.commons.dialogs.RadioGroupDialog
@@ -71,12 +69,9 @@ import org.fossify.filemanager.fragments.ItemsFragment
 import org.fossify.filemanager.fragments.MyViewPagerFragment
 import org.fossify.filemanager.fragments.RecentsFragment
 import org.fossify.filemanager.fragments.StorageFragment
+import org.fossify.filemanager.helpers.AiPlaygroundHelper
 import org.fossify.filemanager.helpers.MAX_COLUMN_COUNT
-import org.fossify.filemanager.helpers.PREF_LOCAL_LLM_PATH
-import org.fossify.filemanager.helpers.LiteRtInferenceEngine
-import org.fossify.filemanager.helpers.LiteRtLmInferenceEngine
 import org.fossify.filemanager.helpers.RootHelpers
-import org.fossify.filemanager.interfaces.AiInferenceEngine
 import org.fossify.filemanager.interfaces.ItemOperationsListener
 import java.io.File
 
@@ -86,7 +81,6 @@ class MainActivity : SimpleActivity() {
     companion object {
         private const val BACK_PRESS_TIMEOUT = 5000
         private const val PICKED_PATH = "picked_path"
-        private const val BYTES_PER_MB = 1_048_576L
     }
 
     private val binding by viewBinding(ActivityMainBinding::inflate)
@@ -260,7 +254,7 @@ class MainActivity : SimpleActivity() {
                     R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
                     R.id.settings -> launchSettings()
                     R.id.about -> launchAbout()
-                    R.id.ai_test -> openAiPlayground()
+                    R.id.ai_test -> AiPlaygroundHelper(this).open()
                     else -> return@setOnMenuItemClickListener false
                 }
                 return@setOnMenuItemClickListener true
@@ -600,79 +594,6 @@ class MainActivity : SimpleActivity() {
         }
 
         startAboutActivity(R.string.app_name, licenses, BuildConfig.VERSION_NAME, faqItems, true)
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private fun openAiPlayground() {
-        val prefs = getSharedPreferences(packageName, MODE_PRIVATE)
-        val modelPath = prefs.getString(PREF_LOCAL_LLM_PATH, null)
-        if (modelPath.isNullOrEmpty()) {
-            toast(R.string.model_path_not_set)
-            return
-        }
-
-        val dialogView = layoutInflater.inflate(R.layout.dialog_ai_playground, null)
-        val promptInput = dialogView.findViewById<android.widget.EditText>(R.id.ai_prompt_input)
-        val outputText = dialogView.findViewById<android.widget.TextView>(R.id.ai_output_text)
-        val generateButton = dialogView.findViewById<android.widget.Button>(R.id.ai_generate_button)
-
-        val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle(R.string.ai_playground)
-            .setView(dialogView)
-            .setNegativeButton(R.string.cancel, null)
-            .create()
-
-        generateButton.setOnClickListener {
-            val prompt = promptInput.text.toString()
-            if (prompt.isBlank()) return@setOnClickListener
-
-            outputText.text = getString(R.string.generating)
-            generateButton.isEnabled = false
-
-            val engine = createInferenceEngine(modelPath)
-            lifecycleScope.launch {
-                try {
-                    val result = engine.generateResponse(prompt)
-                    outputText.text = result
-                } catch (e: Exception) {
-                    val errorMsg = formatErrorMessage(e, modelPath)
-                    outputText.text = getString(R.string.ai_error, errorMsg)
-                } finally {
-                    generateButton.isEnabled = true
-                }
-            }
-        }
-
-        dialog.show()
-    }
-
-    private fun createInferenceEngine(modelPath: String): AiInferenceEngine {
-        val pathLower = modelPath.lowercase()
-        return if (pathLower.endsWith(".litertlm")) {
-            LiteRtLmInferenceEngine(this)
-        } else {
-            LiteRtInferenceEngine(this)
-        }
-    }
-
-    private fun formatErrorMessage(e: Exception, modelPath: String): String {
-        val message = e.message ?: return "Unknown error"
-        // Extract a user-friendly summary but keep technical details for debugging
-        val summary = if (message.contains("Source Location Trace") || message.contains("third_party/")) {
-            "Failed to load model. Please verify the model file is valid and compatible."
-        } else {
-            message.lines().firstOrNull { it.isNotBlank() } ?: message
-        }
-        val fileInfo = try {
-            val file = java.io.File(modelPath)
-            val sizeMb = "%.1f".format(file.length().toDouble() / BYTES_PER_MB)
-            "Path: $modelPath\nExists: ${file.exists()}, Readable: ${file.canRead()}, " +
-                "Size: $sizeMb MB"
-        } catch (_: SecurityException) {
-            "Path: $modelPath (unable to check file)"
-        }
-        // Include file diagnostics and full technical details for debugging
-        return "$summary\n\n$fileInfo\n\nDetails: $message"
     }
 
     private fun checkIfRootAvailable() {
