@@ -254,7 +254,7 @@ class MainActivity : SimpleActivity() {
                     R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
                     R.id.settings -> launchSettings()
                     R.id.about -> launchAbout()
-                    R.id.ai_test -> AiPlaygroundHelper(this).open()
+                    R.id.ai_test -> AiPlaygroundHelper(this@MainActivity).open()
                     else -> return@setOnMenuItemClickListener false
                 }
                 return@setOnMenuItemClickListener true
