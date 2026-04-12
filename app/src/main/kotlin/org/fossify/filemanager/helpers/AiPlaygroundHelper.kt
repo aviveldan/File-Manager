@@ -2,6 +2,8 @@ package org.fossify.filemanager.helpers
 
 import android.app.AlertDialog
 import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -63,9 +65,23 @@ class AiPlaygroundHelper(private val activity: SimpleActivity) {
         dialog.show()
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun createInferenceEngine(modelPath: String): AiInferenceEngine {
-        val pathLower = modelPath.lowercase()
-        return if (pathLower.endsWith(".litertlm")) {
+        // Determine filename: for content URIs query display name (msf: URIs don't embed filename)
+        val filename = if (modelPath.startsWith("content://")) {
+            try {
+                activity.contentResolver.query(
+                    Uri.parse(modelPath),
+                    arrayOf(OpenableColumns.DISPLAY_NAME),
+                    null, null, null
+                )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            } catch (_: Exception) {
+                null
+            } ?: modelPath
+        } else {
+            modelPath
+        }
+        return if (filename.lowercase().endsWith(".litertlm")) {
             LiteRtLmInferenceEngine(activity)
         } else {
             LiteRtInferenceEngine(activity)

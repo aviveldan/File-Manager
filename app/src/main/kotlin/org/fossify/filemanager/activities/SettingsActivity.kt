@@ -1,8 +1,10 @@
 package org.fossify.filemanager.activities
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
+import java.io.File
 import org.fossify.commons.dialogs.ChangeDateTimeFormatDialog
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
@@ -30,7 +32,7 @@ class SettingsActivity : SimpleActivity() {
                 // Permission may not be persistable for all providers
             }
             // Resolve content URI to filesystem path to avoid copying large model files
-            val resolvedPath = getRealPathFromURI(uri) ?: uri.toString()
+            val resolvedPath = resolveModelUri(uri)
             getSharedPreferences(packageName, MODE_PRIVATE)
                 .edit()
                 .putString(PREF_LOCAL_LLM_PATH, resolvedPath)
@@ -309,6 +311,28 @@ class SettingsActivity : SimpleActivity() {
             getString(R.string.local_llm_model_path_summary)
         } else {
             savedPath
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun resolveModelUri(uri: Uri): String {
+        // Try getRealPathFromURI first (works for external storage document URIs)
+        val realPath = getRealPathFromURI(uri)
+        if (realPath != null && File(realPath).exists()) {
+            return realPath
+        }
+        // Fallback: resolve via /proc/self/fd/ symlink (works for Downloads provider msf: URIs)
+        return try {
+            var resolved: String? = null
+            contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                val candidate = File("/proc/self/fd/${pfd.fd}").canonicalPath
+                if (!candidate.startsWith("/proc") && File(candidate).exists()) {
+                    resolved = candidate
+                }
+            }
+            resolved ?: uri.toString()
+        } catch (_: Exception) {
+            uri.toString()
         }
     }
 }
