@@ -74,7 +74,9 @@ import org.fossify.filemanager.fragments.StorageFragment
 import org.fossify.filemanager.helpers.MAX_COLUMN_COUNT
 import org.fossify.filemanager.helpers.PREF_LOCAL_LLM_PATH
 import org.fossify.filemanager.helpers.LiteRtInferenceEngine
+import org.fossify.filemanager.helpers.LiteRtLmInferenceEngine
 import org.fossify.filemanager.helpers.RootHelpers
+import org.fossify.filemanager.interfaces.AiInferenceEngine
 import org.fossify.filemanager.interfaces.ItemOperationsListener
 import java.io.File
 
@@ -626,15 +628,14 @@ class MainActivity : SimpleActivity() {
             outputText.text = getString(R.string.generating)
             generateButton.isEnabled = false
 
-            val engine = LiteRtInferenceEngine(this@MainActivity)
+            val engine = createInferenceEngine(modelPath)
             lifecycleScope.launch {
                 try {
                     val result = engine.generateResponse(prompt)
                     outputText.text = result
                 } catch (e: Exception) {
-                    val errorMsg = cleanErrorMessage(e.message)
+                    val errorMsg = formatErrorMessage(e)
                     outputText.text = getString(R.string.ai_error, errorMsg)
-                    toast(getString(R.string.ai_error, errorMsg))
                 } finally {
                     generateButton.isEnabled = true
                 }
@@ -644,13 +645,25 @@ class MainActivity : SimpleActivity() {
         dialog.show()
     }
 
-    private fun cleanErrorMessage(message: String?): String {
-        if (message.isNullOrBlank()) return "Unknown error"
-        // MediaPipe native errors contain C++ source traces that aren't useful for users
-        if (message.contains("Source Location Trace") || message.contains("third_party/")) {
-            return "Failed to load model. Please verify the model file is valid and compatible."
+    private fun createInferenceEngine(modelPath: String): AiInferenceEngine {
+        val pathLower = modelPath.lowercase()
+        return if (pathLower.endsWith(".litertlm")) {
+            LiteRtLmInferenceEngine(this)
+        } else {
+            LiteRtInferenceEngine(this)
         }
-        return message
+    }
+
+    private fun formatErrorMessage(e: Exception): String {
+        val message = e.message ?: return "Unknown error"
+        // Extract a user-friendly summary but keep technical details for debugging
+        val summary = if (message.contains("Source Location Trace") || message.contains("third_party/")) {
+            "Failed to load model. Please verify the model file is valid and compatible."
+        } else {
+            message.lines().firstOrNull { it.isNotBlank() } ?: message
+        }
+        // Include the full technical details below the summary
+        return "$summary\n\nDetails: $message"
     }
 
     private fun checkIfRootAvailable() {

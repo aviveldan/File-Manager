@@ -56,7 +56,7 @@
     <!-- AI Features -->
     <string name="ai_features">AI Features</string>
     <string name="local_llm_model_path">Local LLM Model Path</string>
-    <string name="local_llm_model_path_summary">Select a local model file (.task, .tflite, .bin)</string>
+    <string name="local_llm_model_path_summary">Select a local model file (.litertlm, .task, .bin)</string>
     <string name="model_path_set">Model path saved</string>
     <string name="model_path_not_set">Please set the model path in Settings first</string>
     <string name="ai_test">AI Test</string>
