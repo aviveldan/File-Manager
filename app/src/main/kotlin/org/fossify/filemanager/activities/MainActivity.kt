@@ -69,6 +69,7 @@ import org.fossify.filemanager.fragments.ItemsFragment
 import org.fossify.filemanager.fragments.MyViewPagerFragment
 import org.fossify.filemanager.fragments.RecentsFragment
 import org.fossify.filemanager.fragments.StorageFragment
+import org.fossify.filemanager.helpers.AiPlaygroundHelper
 import org.fossify.filemanager.helpers.MAX_COLUMN_COUNT
 import org.fossify.filemanager.helpers.RootHelpers
 import org.fossify.filemanager.interfaces.ItemOperationsListener
@@ -253,6 +254,7 @@ class MainActivity : SimpleActivity() {
                     R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
                     R.id.settings -> launchSettings()
                     R.id.about -> launchAbout()
+                    R.id.ai_test -> AiPlaygroundHelper(this@MainActivity).open()
                     else -> return@setOnMenuItemClickListener false
                 }
                 return@setOnMenuItemClickListener true

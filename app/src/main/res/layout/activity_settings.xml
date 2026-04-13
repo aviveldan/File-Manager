@@ -359,6 +359,40 @@
                     android:text="@string/enable_root_access" />
 
             </RelativeLayout>
+
+            <include
+                android:id="@+id/settings_security_divider"
+                layout="@layout/divider" />
+
+            <TextView
+                android:id="@+id/settings_ai_features_label"
+                style="@style/SettingsSectionLabelStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_features" />
+
+            <RelativeLayout
+                android:id="@+id/settings_local_llm_model_path_holder"
+                style="@style/SettingsHolderTextViewStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_local_llm_model_path_label"
+                    style="@style/SettingsTextLabelStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/local_llm_model_path" />
+
+                <org.fossify.commons.views.MyTextView
+                    android:id="@+id/settings_local_llm_model_path_value"
+                    style="@style/SettingsTextValueStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/settings_local_llm_model_path_label"
+                    android:text="@string/local_llm_model_path_summary" />
+
+            </RelativeLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

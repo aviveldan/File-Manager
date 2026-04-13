@@ -1,7 +1,10 @@
 package org.fossify.filemanager.activities
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
+import java.io.File
 import org.fossify.commons.dialogs.ChangeDateTimeFormatDialog
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.RadioGroupDialog
@@ -13,12 +16,31 @@ import org.fossify.filemanager.R
 import org.fossify.filemanager.databinding.ActivitySettingsBinding
 import org.fossify.filemanager.dialogs.ManageVisibleTabsDialog
 import org.fossify.filemanager.extensions.config
+import org.fossify.filemanager.helpers.PREF_LOCAL_LLM_PATH
 import org.fossify.filemanager.helpers.RootHelpers
 import java.util.Locale
 import kotlin.system.exitProcess
 
 class SettingsActivity : SimpleActivity() {
     private val binding by viewBinding(ActivitySettingsBinding::inflate)
+
+    private val modelFilePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            try {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: SecurityException) {
+                // Permission may not be persistable for all providers
+            }
+            // Resolve content URI to filesystem path to avoid copying large model files
+            val resolvedPath = resolveModelUri(uri)
+            getSharedPreferences(packageName, MODE_PRIVATE)
+                .edit()
+                .putString(PREF_LOCAL_LLM_PATH, resolvedPath)
+                .apply()
+            updateModelPathDisplay()
+            toast(R.string.model_path_set)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +71,7 @@ class SettingsActivity : SimpleActivity() {
         setupKeepLastModified()
         setupDeleteConfirmation()
         setupEnableRootAccess()
+        setupLocalLlmModelPath()
         updateTextColors(binding.settingsNestedScrollview)
 
         binding.apply {
@@ -58,7 +81,8 @@ class SettingsActivity : SimpleActivity() {
                 settingsVisibilityLabel,
                 settingsScrollingLabel,
                 settingsFileOperationsLabel,
-                settingsSecurityLabel
+                settingsSecurityLabel,
+                settingsAiFeaturesLabel
             ).forEach {
                 it.setTextColor(getProperPrimaryColor())
             }
@@ -271,5 +295,53 @@ class SettingsActivity : SimpleActivity() {
     private fun toggleRootAccess(enable: Boolean) {
         binding.settingsEnableRootAccess.isChecked = enable
         config.enableRootAccess = enable
+    }
+
+    private fun setupLocalLlmModelPath() {
+        updateModelPathDisplay()
+        binding.settingsLocalLlmModelPathHolder.setOnClickListener {
+            modelFilePicker.launch(arrayOf("*/*"))
+        }
+    }
+
+    private fun updateModelPathDisplay() {
+        val savedPath = getSharedPreferences(packageName, MODE_PRIVATE)
+            .getString(PREF_LOCAL_LLM_PATH, null)
+        binding.settingsLocalLlmModelPathValue.text = if (savedPath.isNullOrEmpty()) {
+            getString(R.string.local_llm_model_path_summary)
+        } else {
+            savedPath
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun resolveModelUri(uri: Uri): String {
+        // Try getRealPathFromURI first (works for external storage document URIs)
+        val realPath = getRealPathFromURI(uri)
+        if (realPath != null && File(realPath).exists()) {
+            return realPath
+        }
+        // Fallback: resolve via /proc/self/fd/ symlink (works for Downloads provider msf: URIs).
+        // The kernel symlink resolves to /data/media/<userId>/... but the app accesses
+        // external storage via the FUSE mount at /storage/emulated/<userId>/..., so we
+        // normalize the prefix. We skip the File.exists() check here — the FD is valid
+        // (we just opened it), so the path is real even if Java's File.exists() can't verify it.
+        return try {
+            var resolved: String? = null
+            contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                val candidate = File("/proc/self/fd/${pfd.fd}").canonicalPath
+                val normalized = candidate.replace(DATA_MEDIA_PATH_REGEX, "/storage/emulated/$1/")
+                if (!normalized.startsWith("/proc") && !normalized.startsWith("/data/")) {
+                    resolved = normalized
+                }
+            }
+            resolved ?: uri.toString()
+        } catch (_: Exception) {
+            uri.toString()
+        }
+    }
+
+    companion object {
+        private val DATA_MEDIA_PATH_REGEX = Regex("^/data/media/(\\d+)/")
     }
 }
