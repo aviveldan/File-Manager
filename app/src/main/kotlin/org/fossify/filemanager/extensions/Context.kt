@@ -12,7 +12,8 @@ import java.util.Locale
 
 val Context.config: Config get() = Config.newInstance(applicationContext)
 
-val Context.fileTagDao: FileTagDao get() = (applicationContext as App).fileMetadataDatabase.fileTagDao()
+val Context.fileTagDao: FileTagDao
+    get() = (applicationContext as App).fileMetadataDatabase.fileTagDao()
 
 fun Context.isPathOnRoot(path: String) = !(path.startsWith(config.internalStoragePath) || isPathOnOTG(path) || (isPathOnSD(path)))
 

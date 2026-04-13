@@ -165,6 +165,7 @@ class ItemsAdapter(
         private const val TYPE_DIR = 2
         private const val TYPE_SECTION = 3
         private const val TYPE_GRID_TYPE_DIVIDER = 4
+        private const val TAGS_INPUT_MAX_LINES = 3
     }
 
     init {
@@ -329,7 +330,7 @@ class ItemsAdapter(
                 hint = activity.getString(R.string.manage_tags_hint)
                 setText(existingTags)
                 setSingleLine(false)
-                maxLines = 3
+                maxLines = TAGS_INPUT_MAX_LINES
             }
 
             val padding = activity.resources
