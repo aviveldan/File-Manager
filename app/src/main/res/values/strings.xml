@@ -70,6 +70,11 @@
     <!-- Settings -->
     <string name="enable_root_access">Enable root access</string>
     <string name="press_back_twice">Require pressing Back twice to leave the app</string>
+
+    <!-- Tags -->
+    <string name="manage_tags">Manage Tags</string>
+    <string name="manage_tags_hint">Enter comma-separated tags</string>
+    <string name="tags_updated">Tags updated</string>
     <!--
         Haven't found some strings? There's more at
         https://github.com/FossifyOrg/Commons/tree/master/commons/src/main/res
