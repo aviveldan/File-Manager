@@ -23,7 +23,7 @@ interface FileTagDao {
 
     @Query(
         "UPDATE file_tags SET filePath = :newParent || substr(filePath, length(:oldParent) + 1)" +
-            " WHERE filePath LIKE :oldParent || '%'"
+            " WHERE filePath = :oldParent OR filePath LIKE :oldParent || '/%'"
     )
     suspend fun updateParentPath(oldParent: String, newParent: String)
 }

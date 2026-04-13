@@ -120,7 +120,8 @@ import java.io.Closeable
 import java.io.File
 import java.util.LinkedList
 import java.util.Locale
-import kotlinx.coroutines.CoroutineScope
+import java.util.concurrent.ConcurrentHashMap
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -158,7 +159,7 @@ class ItemsAdapter(
     }
     private val isListViewType = viewType == VIEW_TYPE_LIST
     private var displayFilenamesInGrid = config.displayFilenames
-    private val tagsCache = HashMap<String, String>()
+    private val tagsCache = ConcurrentHashMap<String, String>()
 
     companion object {
         private const val TYPE_FILE = 1
@@ -321,7 +322,7 @@ class ItemsAdapter(
     private fun manageTags() {
         val path = getFirstSelectedItemPath()
         val dao = activity.fileTagDao
-        CoroutineScope(Dispatchers.Main).launch {
+        activity.lifecycleScope.launch {
             val existingTags = withContext(Dispatchers.IO) {
                 dao.getTagsForPath(path)
             }.orEmpty()
@@ -345,7 +346,7 @@ class ItemsAdapter(
                 .setView(container)
                 .setPositiveButton(R.string.ok) { _, _ ->
                     val newTags = editText.text.toString().trim()
-                    CoroutineScope(Dispatchers.IO).launch {
+                    activity.lifecycleScope.launch(Dispatchers.IO) {
                         if (newTags.isEmpty()) {
                             dao.deleteTags(path)
                             tagsCache.remove(path)
@@ -664,7 +665,7 @@ class ItemsAdapter(
 
     private fun updateTagPathAfterRename(oldPath: String, newPath: String) {
         val dao = activity.fileTagDao
-        CoroutineScope(Dispatchers.IO).launch {
+        activity.lifecycleScope.launch(Dispatchers.IO) {
             if (File(newPath).isDirectory) {
                 dao.updateParentPath(oldPath, newPath)
             } else {
@@ -678,7 +679,7 @@ class ItemsAdapter(
         destination: String
     ) {
         val dao = activity.fileTagDao
-        CoroutineScope(Dispatchers.IO).launch {
+        activity.lifecycleScope.launch(Dispatchers.IO) {
             files.forEach { file ->
                 val oldPath = file.path
                 val newPath = "$destination/${file.name}"
@@ -1094,7 +1095,7 @@ class ItemsAdapter(
             .map { it.path }
         if (paths.isEmpty()) return
 
-        CoroutineScope(Dispatchers.IO).launch {
+        activity.lifecycleScope.launch(Dispatchers.IO) {
             val dao = activity.fileTagDao
             val tags = dao.getTagsForPaths(paths)
             val newCache = HashMap<String, String>()
