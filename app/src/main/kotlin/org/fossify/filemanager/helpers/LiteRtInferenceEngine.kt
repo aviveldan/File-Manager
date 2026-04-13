@@ -88,9 +88,10 @@ class LiteRtInferenceEngine(private val context: Context) : AiInferenceEngine {
             val fdPath = "/proc/self/fd/${pfd.fd}"
             val rawPath = File(fdPath).canonicalPath
             // Kernel symlink resolves to /data/media/<userId>/... but FUSE mount is
-            // /storage/emulated/<userId>/... — normalize so File.exists() works.
+            // /storage/emulated/<userId>/... — normalize. Skip File.exists() check since
+            // the FD is valid and the path is real even if Java's API can't verify it.
             val normalized = rawPath.replace(DATA_MEDIA_PATH_REGEX, "/storage/emulated/$1/")
-            if (!normalized.startsWith("/proc") && File(normalized).exists()) normalized else null
+            if (!normalized.startsWith("/proc") && !normalized.startsWith("/data/")) normalized else null
         } finally {
             pfd.close()
         }

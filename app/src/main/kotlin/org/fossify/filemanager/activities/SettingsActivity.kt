@@ -324,13 +324,14 @@ class SettingsActivity : SimpleActivity() {
         // Fallback: resolve via /proc/self/fd/ symlink (works for Downloads provider msf: URIs).
         // The kernel symlink resolves to /data/media/<userId>/... but the app accesses
         // external storage via the FUSE mount at /storage/emulated/<userId>/..., so we
-        // normalize the prefix before the existence check.
+        // normalize the prefix. We skip the File.exists() check here — the FD is valid
+        // (we just opened it), so the path is real even if Java's File.exists() can't verify it.
         return try {
             var resolved: String? = null
             contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
                 val candidate = File("/proc/self/fd/${pfd.fd}").canonicalPath
                 val normalized = candidate.replace(DATA_MEDIA_PATH_REGEX, "/storage/emulated/$1/")
-                if (!normalized.startsWith("/proc") && File(normalized).exists()) {
+                if (!normalized.startsWith("/proc") && !normalized.startsWith("/data/")) {
                     resolved = normalized
                 }
             }
