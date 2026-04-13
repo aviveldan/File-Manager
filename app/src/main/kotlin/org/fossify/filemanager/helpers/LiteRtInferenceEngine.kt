@@ -16,6 +16,7 @@ class LiteRtInferenceEngine(private val context: Context) : AiInferenceEngine {
         private const val MAX_TOKENS = 512
         private const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
         private const val PRIMARY_VOLUME = "primary"
+        private val DATA_MEDIA_PATH_REGEX = Regex("^/data/media/(\\d+)/")
     }
 
     override suspend fun generateResponse(prompt: String): String = withContext(Dispatchers.IO) {
@@ -85,9 +86,11 @@ class LiteRtInferenceEngine(private val context: Context) : AiInferenceEngine {
         val pfd = context.contentResolver.openFileDescriptor(uri, "r") ?: return null
         return try {
             val fdPath = "/proc/self/fd/${pfd.fd}"
-            val realPath = File(fdPath).canonicalPath
-            // Ensure the resolved path is a real filesystem path, not still a /proc reference
-            if (!realPath.startsWith("/proc") && File(realPath).exists()) realPath else null
+            val rawPath = File(fdPath).canonicalPath
+            // Kernel symlink resolves to /data/media/<userId>/... but FUSE mount is
+            // /storage/emulated/<userId>/... — normalize so File.exists() works.
+            val normalized = rawPath.replace(DATA_MEDIA_PATH_REGEX, "/storage/emulated/$1/")
+            if (!normalized.startsWith("/proc") && File(normalized).exists()) normalized else null
         } finally {
             pfd.close()
         }

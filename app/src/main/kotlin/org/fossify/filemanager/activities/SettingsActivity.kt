@@ -321,18 +321,26 @@ class SettingsActivity : SimpleActivity() {
         if (realPath != null && File(realPath).exists()) {
             return realPath
         }
-        // Fallback: resolve via /proc/self/fd/ symlink (works for Downloads provider msf: URIs)
+        // Fallback: resolve via /proc/self/fd/ symlink (works for Downloads provider msf: URIs).
+        // The kernel symlink resolves to /data/media/<userId>/... but the app accesses
+        // external storage via the FUSE mount at /storage/emulated/<userId>/..., so we
+        // normalize the prefix before the existence check.
         return try {
             var resolved: String? = null
             contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
                 val candidate = File("/proc/self/fd/${pfd.fd}").canonicalPath
-                if (!candidate.startsWith("/proc") && File(candidate).exists()) {
-                    resolved = candidate
+                val normalized = candidate.replace(DATA_MEDIA_PATH_REGEX, "/storage/emulated/$1/")
+                if (!normalized.startsWith("/proc") && File(normalized).exists()) {
+                    resolved = normalized
                 }
             }
             resolved ?: uri.toString()
         } catch (_: Exception) {
             uri.toString()
         }
+    }
+
+    companion object {
+        private val DATA_MEDIA_PATH_REGEX = Regex("^/data/media/(\\d+)/")
     }
 }
