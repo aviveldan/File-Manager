@@ -108,7 +108,7 @@ class FileTagDaoTest {
     @Test
     fun updateParentPathRenamesDirectoryAndChildren() = runBlocking {
         val parent = "/storage/emulated/0/OldFolder"
-        dao.insertOrUpdateTags(FileTag("$parent", "folder-tag"))
+        dao.insertOrUpdateTags(FileTag(parent, "folder-tag"))
         dao.insertOrUpdateTags(FileTag("$parent/doc.txt", "doc-tag"))
         dao.insertOrUpdateTags(FileTag("$parent/sub/image.png", "img-tag"))
         // Unrelated file that should NOT be affected
