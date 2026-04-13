@@ -14,6 +14,7 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
@@ -121,6 +122,7 @@ import java.io.File
 import java.util.LinkedList
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -327,7 +329,7 @@ class ItemsAdapter(
                 dao.getTagsForPath(path)
             }.orEmpty()
 
-            val editText = android.widget.EditText(activity).apply {
+            val editText = EditText(activity).apply {
                 hint = activity.getString(R.string.manage_tags_hint)
                 setText(existingTags)
                 setSingleLine(false)
@@ -336,12 +338,12 @@ class ItemsAdapter(
 
             val padding = activity.resources
                 .getDimensionPixelSize(R.dimen.activity_margin)
-            val container = android.widget.FrameLayout(activity).apply {
+            val container = FrameLayout(activity).apply {
                 setPadding(padding, padding, padding, 0)
                 addView(editText)
             }
 
-            androidx.appcompat.app.AlertDialog.Builder(activity)
+            AlertDialog.Builder(activity)
                 .setTitle(R.string.manage_tags)
                 .setView(container)
                 .setPositiveButton(R.string.ok) { _, _ ->
