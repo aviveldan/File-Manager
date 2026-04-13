@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Environment
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
+import android.system.Os
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
@@ -32,28 +33,24 @@ class LiteRtLmInferenceEngine(private val context: Context) : AiInferenceEngine 
             return@withContext runEngine(uriString, prompt)
         }
 
-        // It's a content URI — open a ParcelFileDescriptor and keep it alive for the engine.
-        // Using /proc/self/fd/<N> lets the native C++ engine open the file without needing a
-        // resolved filesystem path, which may be inaccessible via Java's File API on some devices.
+        // Content URI path: open a ParcelFileDescriptor and resolve to a usable file path.
         val uri = Uri.parse(uriString)
-        val pfd = openPfdOrResolve(uri)
-        val (modelPath, ownedPfd) = pfd
+        val (modelPath, ownedPfd) = openAndResolve(uri)
 
         try {
-            // Skip Java-level file validation for /proc/self/fd/ paths: File.exists() returns
-            // false for FD paths even though the file is valid and open — the native engine
-            // opens it directly from the kernel path without going through the FUSE layer.
-            if (!modelPath.startsWith("/proc/self/fd/")) {
-                validateModelFile(modelPath)
-            }
             runEngine(modelPath, prompt)
         } finally {
             ownedPfd?.close()
         }
     }
 
-    private fun openPfdOrResolve(uri: Uri): Pair<String, ParcelFileDescriptor?> {
-        // Try DocumentsContract path (works for primary external storage URIs)
+    /**
+     * Resolves a content URI to a file path that the native LiteRT-LM engine can open.
+     * Returns the path and (if applicable) an open PFD that must be kept alive until the
+     * engine finishes — the native code reads through the FD.
+     */
+    private fun openAndResolve(uri: Uri): Pair<String, ParcelFileDescriptor?> {
+        // 1. Try DocumentsContract path (primary external storage provider gives us a plain path)
         if (DocumentsContract.isDocumentUri(context, uri) && uri.authority == EXTERNAL_STORAGE_AUTHORITY) {
             val docId = DocumentsContract.getDocumentId(uri)
             val parts = docId.split(":")
@@ -65,25 +62,40 @@ class LiteRtLmInferenceEngine(private val context: Context) : AiInferenceEngine 
             }
         }
 
-        // Try to get a real filesystem path via /proc/self/fd/ symlink but keep PFD open.
-        // The FD path /proc/self/fd/<N> is directly openable by native code even when
-        // Java's File.exists() would fail on the mapped FUSE path.
+        // 2. Open a ParcelFileDescriptor — this works for all providers including Downloads msf: URIs.
         val pfd = context.contentResolver.openFileDescriptor(uri, "r")
-            ?: error("Cannot open model file from URI: ${uri}")
-
-        // Try to get a nicer filesystem path for diagnostics (non-critical)
+            ?: error("Cannot open model file from URI: $uri")
         val fdPath = "/proc/self/fd/${pfd.fd}"
-        val nicePathCandidate = try {
+
+        // 3. Try to resolve the FD to a human-readable FUSE path via canonicalPath.
+        val fusePath = try {
             val raw = File(fdPath).canonicalPath
             val normalized = raw.replace(DATA_MEDIA_PATH_REGEX, "/storage/emulated/$1/")
-            // Prefer the human-readable FUSE path when possible, but skip File.exists()
-            // check — it can fail even for valid files on some Android versions/devices.
-            if (normalized.startsWith("/storage")) normalized else fdPath
+            if (normalized.startsWith("/storage")) normalized else null
         } catch (_: Exception) {
-            fdPath
+            null
         }
 
-        return Pair(nicePathCandidate, pfd)
+        // 4. If the FUSE path is valid and accessible, use it — it has the right extension.
+        if (fusePath != null && File(fusePath).exists()) {
+            return Pair(fusePath, pfd)
+        }
+
+        // 5. Fallback: create a symlink with .litertlm extension in cacheDir.
+        //    /proc/self/fd/N has no extension, which causes LiteRT-LM format auto-detection to fail.
+        //    A symlink in cacheDir keeps the correct extension while the FD stays open.
+        //    Use pfd.fd in the name to avoid races between concurrent calls.
+        val linkFile = File(context.cacheDir, "litert_model_link_${pfd.fd}.litertlm")
+        return try {
+            if (linkFile.exists() && !linkFile.delete()) {
+                error("Cannot replace stale model symlink: ${linkFile.absolutePath}")
+            }
+            Os.symlink(fdPath, linkFile.absolutePath)
+            Pair(linkFile.absolutePath, pfd)
+        } catch (_: Exception) {
+            // Last resort: pass the raw FD path; engine will attempt to open it directly.
+            Pair(fdPath, pfd)
+        }
     }
 
     private fun runEngine(modelPath: String, prompt: String): String {

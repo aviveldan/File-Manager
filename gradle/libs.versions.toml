@@ -16,7 +16,7 @@ rootshell = "bc7e5d398e"
 roottools = "965c154e20"
 zip4j = "2.11.6"
 mediapipe-genai = "0.10.27"
-litertlm = "0.10.0"
+litertlm = "0.10.1"
 kotlinx-coroutines = "1.10.2"
 #Testing
 androidx-test-ext-junit = "1.2.1"
