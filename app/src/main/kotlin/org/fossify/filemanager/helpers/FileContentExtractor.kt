@@ -24,18 +24,20 @@ object FileContentExtractor {
         if (extension !in SUPPORTED_EXTENSIONS) return null
         if (!file.exists() || !file.canRead()) return null
 
-        val buffer = CharArray(MAX_CHARS)
+        // Read MAX_CHARS + 1 to detect whether truncation occurred, avoiding
+        // a byte-length vs char-count mismatch for multi-byte UTF-8 files.
+        val readLimit = MAX_CHARS + 1
+        val buffer = CharArray(readLimit)
         val charsRead = file.reader(Charsets.UTF_8).use { reader ->
-            reader.read(buffer, 0, MAX_CHARS)
+            reader.read(buffer, 0, readLimit)
         }
 
         if (charsRead <= 0) return ""
 
-        val text = String(buffer, 0, charsRead)
-        return if (file.length() > charsRead) {
-            text + TRUNCATION_MARKER
+        return if (charsRead > MAX_CHARS) {
+            String(buffer, 0, MAX_CHARS) + TRUNCATION_MARKER
         } else {
-            text
+            String(buffer, 0, charsRead)
         }
     }
 }
