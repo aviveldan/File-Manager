@@ -30,6 +30,9 @@ jobs:
       - name: Build Debug APK and Test APK
         run: ./gradlew assembleFossDebug assembleFossDebugAndroidTest
 
+      - name: Run Unit Tests
+        run: ./gradlew testFossDebugUnitTest
+
       - name: Enable KVM (Hardware Acceleration for Linux Runner)
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -73,3 +76,10 @@ jobs:
         with:
           name: instrumented-test-reports
           path: app/build/reports/androidTests/connected/
+
+      - name: Upload Unit Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: app/build/reports/tests/

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.lifecycleScope
+import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -63,34 +64,6 @@ class AiTaggingHelper(private val activity: SimpleActivity) {
         }
     }
 
-    private fun buildPrompt(file: File): String {
-        val content = FileContentExtractor.extractTextForAi(file)
-        return if (content != null) {
-            "You are an offline file organizer. Analyze the following filename and file content. " +
-                "Generate exactly 3 descriptive category tags. " +
-                "Respond with ONLY the 3 tags separated by commas. Do not explain.\n" +
-                "Filename: '${file.name}'\n" +
-                "Content:\n$content"
-        } else {
-            "You are an offline file organizer. Analyze the following filename. " +
-                "Generate exactly 3 descriptive category tags. " +
-                "Respond with ONLY the 3 tags separated by commas. Do not explain.\n" +
-                "Filename: '${file.name}'"
-        }
-    }
-
-    /**
-     * Cleans the raw model output into a normalized comma-separated tag string.
-     * Strips whitespace, empty segments, and limits to 3 tags.
-     */
-    private fun parseTagResponse(raw: String): String {
-        return raw.split(",")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .take(TAGS_LIMIT)
-            .joinToString(", ")
-    }
-
     private fun createInferenceEngine(modelPath: String): AiInferenceEngine {
         val filename = resolveDisplayName(modelPath)
         return if (filename.lowercase().endsWith(".litertlm")) {
@@ -115,6 +88,41 @@ class AiTaggingHelper(private val activity: SimpleActivity) {
     }
 
     companion object {
-        private const val TAGS_LIMIT = 3
+        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+        internal const val TAGS_LIMIT = 3
+
+        /**
+         * Builds a content-aware prompt for the AI model. Includes file content for supported
+         * text formats, or falls back to filename-only analysis for binary files.
+         */
+        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+        internal fun buildPrompt(file: File): String {
+            val content = FileContentExtractor.extractTextForAi(file)
+            return if (content != null) {
+                "You are an offline file organizer. Analyze the following filename and file content. " +
+                    "Generate exactly 3 descriptive category tags. " +
+                    "Respond with ONLY the 3 tags separated by commas. Do not explain.\n" +
+                    "Filename: '${file.name}'\n" +
+                    "Content:\n$content"
+            } else {
+                "You are an offline file organizer. Analyze the following filename. " +
+                    "Generate exactly 3 descriptive category tags. " +
+                    "Respond with ONLY the 3 tags separated by commas. Do not explain.\n" +
+                    "Filename: '${file.name}'"
+            }
+        }
+
+        /**
+         * Cleans the raw model output into a normalized comma-separated tag string.
+         * Strips whitespace, empty segments, and limits to [TAGS_LIMIT] tags.
+         */
+        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+        internal fun parseTagResponse(raw: String): String {
+            return raw.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .take(TAGS_LIMIT)
+                .joinToString(", ")
+        }
     }
 }
