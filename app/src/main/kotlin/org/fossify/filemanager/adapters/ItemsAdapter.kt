@@ -1217,17 +1217,20 @@ class ItemsAdapter(
                     }
                 }
 
-                if (isListViewType) {
-                    val cachedTags = tagsCache[listItem.path]
-                    if (cachedTags != null) {
-                        itemTags?.text = cachedTags
-                        itemTags?.setTextColor(textColor)
-                        itemTags?.beVisible()
-                    } else {
-                        itemTags?.beGone()
-                    }
-                }
+                bindTagDisplay(this, listItem)
             }
+        }
+    }
+
+    private fun bindTagDisplay(binding: ItemViewBinding, listItem: ListItem) {
+        if (!isListViewType) return
+        val cachedTags = tagsCache[listItem.path]
+        if (cachedTags != null) {
+            binding.itemTags?.text = cachedTags
+            binding.itemTags?.setTextColor(textColor)
+            binding.itemTags?.beVisible()
+        } else {
+            binding.itemTags?.beGone()
         }
     }
 

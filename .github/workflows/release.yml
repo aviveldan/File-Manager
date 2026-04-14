@@ -8,6 +8,7 @@ on:
 
 jobs:
   call-release-workflow:
+    if: github.repository_owner == 'FossifyOrg'
     name: Release
     uses: FossifyOrg/.github/.github/workflows/release.yml@main
     with:
