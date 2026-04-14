@@ -113,6 +113,7 @@ import org.fossify.filemanager.helpers.OPEN_AS_IMAGE
 import org.fossify.filemanager.helpers.OPEN_AS_OTHER
 import org.fossify.filemanager.helpers.OPEN_AS_TEXT
 import org.fossify.filemanager.helpers.OPEN_AS_VIDEO
+import org.fossify.filemanager.helpers.AiTaggingHelper
 import org.fossify.filemanager.helpers.RootHelpers
 import org.fossify.filemanager.interfaces.ItemOperationsListener
 import org.fossify.filemanager.models.ListItem
@@ -193,6 +194,7 @@ class ItemsAdapter(
             findItem(R.id.cab_set_as).isVisible = isOneFileSelected()
             findItem(R.id.cab_create_shortcut).isVisible = isOneItemSelected()
             findItem(R.id.cab_manage_tags).isVisible = isOneItemSelected()
+            findItem(R.id.cab_auto_tag_ai).isVisible = isOneFileSelected()
 
             checkHideBtnVisibility(this)
         }
@@ -218,6 +220,7 @@ class ItemsAdapter(
             R.id.cab_copy_to -> copyMoveTo(true)
             R.id.cab_move_to -> tryMoveFiles()
             R.id.cab_manage_tags -> manageTags()
+            R.id.cab_auto_tag_ai -> autoTagWithAi()
             R.id.cab_compress -> compressSelection()
             R.id.cab_decompress -> decompressSelection()
             R.id.cab_select_all -> selectAll()
@@ -365,6 +368,14 @@ class ItemsAdapter(
                 }
                 .setNegativeButton(R.string.cancel, null)
                 .show()
+        }
+    }
+
+    private fun autoTagWithAi() {
+        val path = getFirstSelectedItemPath()
+        finishActMode()
+        AiTaggingHelper(activity as SimpleActivity).tagFile(path) {
+            loadTagsForItems()
         }
     }
 
