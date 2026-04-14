@@ -14,6 +14,7 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
@@ -91,6 +92,7 @@ import org.fossify.commons.views.MyRecyclerView
 import org.fossify.filemanager.R
 import org.fossify.filemanager.activities.SimpleActivity
 import org.fossify.filemanager.activities.SplashActivity
+import org.fossify.filemanager.database.FileTag
 import org.fossify.filemanager.databinding.ItemDirGridBinding
 import org.fossify.filemanager.databinding.ItemEmptyBinding
 import org.fossify.filemanager.databinding.ItemFileDirListBinding
@@ -98,6 +100,7 @@ import org.fossify.filemanager.databinding.ItemFileGridBinding
 import org.fossify.filemanager.databinding.ItemSectionBinding
 import org.fossify.filemanager.dialogs.CompressAsDialog
 import org.fossify.filemanager.extensions.config
+import org.fossify.filemanager.extensions.fileTagDao
 import org.fossify.filemanager.extensions.isPathOnRoot
 import org.fossify.filemanager.extensions.isZipFile
 import org.fossify.filemanager.extensions.setAs
@@ -118,6 +121,12 @@ import java.io.Closeable
 import java.io.File
 import java.util.LinkedList
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ItemsAdapter(
     activity: SimpleActivity,
@@ -152,12 +161,14 @@ class ItemsAdapter(
     }
     private val isListViewType = viewType == VIEW_TYPE_LIST
     private var displayFilenamesInGrid = config.displayFilenames
+    private val tagsCache = ConcurrentHashMap<String, String>()
 
     companion object {
         private const val TYPE_FILE = 1
         private const val TYPE_DIR = 2
         private const val TYPE_SECTION = 3
         private const val TYPE_GRID_TYPE_DIVIDER = 4
+        private const val TAGS_INPUT_MAX_LINES = 3
     }
 
     init {
@@ -166,6 +177,7 @@ class ItemsAdapter(
         updateFontSizes()
         dateFormat = config.dateFormat
         timeFormat = activity.getTimeFormat()
+        loadTagsForItems()
     }
 
     override fun getActionMenuId() = R.menu.cab
@@ -180,6 +192,7 @@ class ItemsAdapter(
             findItem(R.id.cab_open_as).isVisible = isOneFileSelected()
             findItem(R.id.cab_set_as).isVisible = isOneFileSelected()
             findItem(R.id.cab_create_shortcut).isVisible = isOneItemSelected()
+            findItem(R.id.cab_manage_tags).isVisible = isOneItemSelected()
 
             checkHideBtnVisibility(this)
         }
@@ -204,6 +217,7 @@ class ItemsAdapter(
             R.id.cab_open_as -> openAs()
             R.id.cab_copy_to -> copyMoveTo(true)
             R.id.cab_move_to -> tryMoveFiles()
+            R.id.cab_manage_tags -> manageTags()
             R.id.cab_compress -> compressSelection()
             R.id.cab_decompress -> decompressSelection()
             R.id.cab_select_all -> selectAll()
@@ -307,6 +321,53 @@ class ItemsAdapter(
         }
     }
 
+    private fun manageTags() {
+        val path = getFirstSelectedItemPath()
+        val dao = activity.fileTagDao
+        activity.lifecycleScope.launch {
+            val existingTags = withContext(Dispatchers.IO) {
+                dao.getTagsForPath(path)
+            }.orEmpty()
+
+            val editText = EditText(activity).apply {
+                hint = activity.getString(R.string.manage_tags_hint)
+                setText(existingTags)
+                setSingleLine(false)
+                maxLines = TAGS_INPUT_MAX_LINES
+            }
+
+            val padding = activity.resources
+                .getDimensionPixelSize(R.dimen.activity_margin)
+            val container = FrameLayout(activity).apply {
+                setPadding(padding, padding, padding, 0)
+                addView(editText)
+            }
+
+            AlertDialog.Builder(activity)
+                .setTitle(R.string.manage_tags)
+                .setView(container)
+                .setPositiveButton(R.string.ok) { _, _ ->
+                    val newTags = editText.text.toString().trim()
+                    activity.lifecycleScope.launch(Dispatchers.IO) {
+                        if (newTags.isEmpty()) {
+                            dao.deleteTags(path)
+                            tagsCache.remove(path)
+                        } else {
+                            dao.insertOrUpdateTags(FileTag(path, newTags))
+                            tagsCache[path] = newTags
+                        }
+                        withContext(Dispatchers.Main) {
+                            activity.toast(R.string.tags_updated)
+                            notifyDataSetChanged()
+                            finishActMode()
+                        }
+                    }
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
+    }
+
     private fun displayRenameDialog() {
         val fileDirItems = getSelectedFileDirItems()
         val paths = fileDirItems.asSequence().map { it.path }.toMutableList() as ArrayList<String>
@@ -315,6 +376,7 @@ class ItemsAdapter(
                 val oldPath = paths.first()
                 RenameItemDialog(activity, oldPath) {
                     config.moveFavorite(oldPath, it)
+                    updateTagPathAfterRename(oldPath, it)
                     activity.runOnUiThread {
                         listener?.refreshFragment()
                         finishActMode()
@@ -359,7 +421,10 @@ class ItemsAdapter(
     private fun toggleFileVisibility(hide: Boolean) {
         ensureBackgroundThread {
             getSelectedFileDirItems().forEach {
-                activity.toggleItemVisibility(it.path, hide)
+                val oldPath = it.path
+                activity.toggleItemVisibility(oldPath, hide) { newPath ->
+                    updateTagPathAfterRename(oldPath, newPath)
+                }
             }
             activity.runOnUiThread {
                 listener?.refreshFragment()
@@ -523,15 +588,17 @@ class ItemsAdapter(
             if (activity.isPathOnRoot(it) || activity.isPathOnRoot(firstFile.path)) {
                 copyMoveRootItems(files, it, isCopyOperation)
             } else {
+                val destination = it
                 activity.copyMoveFilesTo(
                     fileDirItems = files,
                     source = source,
-                    destination = it,
+                    destination = destination,
                     isCopyOperation = isCopyOperation,
                     copyPhotoVideoOnly = false,
                     copyHidden = config.shouldShowHidden()
                 ) {
                     if (!isCopyOperation) {
+                        updateTagPathsAfterMove(files, destination)
                         files.forEach { sourceFileDir ->
                             val sourcePath = sourceFileDir.path
                             if (
@@ -593,6 +660,35 @@ class ItemsAdapter(
                 activity.runOnUiThread {
                     listener?.refreshFragment()
                     finishActMode()
+                }
+            }
+        }
+    }
+
+    private fun updateTagPathAfterRename(oldPath: String, newPath: String) {
+        val dao = activity.fileTagDao
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            if (File(newPath).isDirectory) {
+                dao.updateParentPath(oldPath, newPath)
+            } else {
+                dao.updatePath(oldPath, newPath)
+            }
+        }
+    }
+
+    private fun updateTagPathsAfterMove(
+        files: ArrayList<FileDirItem>,
+        destination: String
+    ) {
+        val dao = activity.fileTagDao
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            files.forEach { file ->
+                val oldPath = file.path
+                val newPath = "$destination/${file.name}"
+                if (file.isDirectory) {
+                    dao.updateParentPath(oldPath, newPath)
+                } else {
+                    dao.updatePath(oldPath, newPath)
                 }
             }
         }
@@ -969,6 +1065,7 @@ class ItemsAdapter(
             currentItemsHash = newItems.hashCode()
             textToHighlight = highlightText
             listItems = newItems.clone() as ArrayList<ListItem>
+            loadTagsForItems()
             notifyDataSetChanged()
             finishActMode()
         } else if (textToHighlight != highlightText) {
@@ -992,6 +1089,28 @@ class ItemsAdapter(
     fun updateDisplayFilenamesInGrid() {
         displayFilenamesInGrid = config.displayFilenames
         notifyDataSetChanged()
+    }
+
+    private fun loadTagsForItems() {
+        val paths = listItems
+            .filter { !it.isSectionTitle && !it.isGridTypeDivider }
+            .map { it.path }
+        if (paths.isEmpty()) return
+
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            val dao = activity.fileTagDao
+            val tags = dao.getTagsForPaths(paths)
+            val newCache = HashMap<String, String>()
+            tags.forEach { newCache[it.filePath] = it.tags }
+
+            withContext(Dispatchers.Main) {
+                tagsCache.clear()
+                tagsCache.putAll(newCache)
+                if (newCache.isNotEmpty()) {
+                    notifyDataSetChanged()
+                }
+            }
+        }
     }
 
     fun updateChildCount(path: String, count: Int) {
@@ -1097,7 +1216,21 @@ class ItemsAdapter(
                             .into(itemIcon!!)
                     }
                 }
+
+                bindTagDisplay(this, listItem)
             }
+        }
+    }
+
+    private fun bindTagDisplay(binding: ItemViewBinding, listItem: ListItem) {
+        if (!isListViewType) return
+        val cachedTags = tagsCache[listItem.path]
+        if (cachedTags != null) {
+            binding.itemTags?.text = cachedTags
+            binding.itemTags?.setTextColor(textColor)
+            binding.itemTags?.beVisible()
+        } else {
+            binding.itemTags?.beGone()
         }
     }
 
@@ -1265,6 +1398,7 @@ class ItemsAdapter(
         val itemDetails: TextView?
         val itemDate: TextView?
         val itemSection: TextView?
+        val itemTags: TextView?
     }
 
     private class ItemSectionBindingAdapter(val binding: ItemSectionBinding) : ItemViewBinding {
@@ -1275,6 +1409,7 @@ class ItemsAdapter(
         override val itemDate: TextView? = null
         override val itemCheck: ImageView? = null
         override val itemSection: TextView = binding.itemSection
+        override val itemTags: TextView? = null
         override fun getRoot(): View = binding.root
     }
 
@@ -1286,6 +1421,7 @@ class ItemsAdapter(
         override val itemDate: TextView? = null
         override val itemCheck: ImageView? = null
         override val itemSection: TextView? = null
+        override val itemTags: TextView? = null
 
         override fun getRoot(): View = binding.root
     }
@@ -1300,6 +1436,7 @@ class ItemsAdapter(
         override val itemDate: TextView = binding.itemDate
         override val itemCheck: ImageView? = null
         override val itemSection: TextView? = null
+        override val itemTags: TextView = binding.itemTags
 
         override fun getRoot(): View = binding.root
     }
@@ -1312,6 +1449,7 @@ class ItemsAdapter(
         override val itemDate: TextView? = null
         override val itemCheck: ImageView = binding.itemCheck
         override val itemSection: TextView? = null
+        override val itemTags: TextView? = null
 
         override fun getRoot(): View = binding.root
     }
@@ -1324,6 +1462,7 @@ class ItemsAdapter(
         override val itemDate: TextView? = null
         override val itemCheck: ImageView? = null
         override val itemSection: TextView? = null
+        override val itemTags: TextView? = null
 
         override fun getRoot(): View = binding.root
     }

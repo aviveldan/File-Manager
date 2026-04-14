@@ -6,6 +6,7 @@ import java.io.FileInputStream
 plugins {
     alias(libs.plugins.android)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.ksp)
 }
 
 val keystorePropertiesFile: File = rootProject.file("keystore.properties")
@@ -149,6 +150,9 @@ dependencies {
     implementation(libs.mediapipe.tasks.genai)
     implementation(libs.litertlm.android)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
     detektPlugins(libs.compose.detekt)
 
     androidTestImplementation(libs.androidx.test.ext.junit)

@@ -4,11 +4,16 @@ import android.content.Context
 import android.os.storage.StorageManager
 import org.fossify.commons.extensions.isPathOnOTG
 import org.fossify.commons.extensions.isPathOnSD
+import org.fossify.filemanager.App
+import org.fossify.filemanager.database.FileTagDao
 import org.fossify.filemanager.helpers.Config
 import org.fossify.filemanager.helpers.PRIMARY_VOLUME_NAME
 import java.util.Locale
 
 val Context.config: Config get() = Config.newInstance(applicationContext)
+
+val Context.fileTagDao: FileTagDao
+    get() = (applicationContext as App).fileMetadataDatabase.fileTagDao()
 
 fun Context.isPathOnRoot(path: String) = !(path.startsWith(config.internalStoragePath) || isPathOnOTG(path) || (isPathOnSD(path)))
 

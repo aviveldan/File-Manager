@@ -65,27 +65,27 @@ class AiPlaygroundHelper(private val activity: SimpleActivity) {
         dialog.show()
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private fun createInferenceEngine(modelPath: String): AiInferenceEngine {
-        // Determine filename: for content URIs query display name (msf: URIs don't embed filename)
-        val filename = if (modelPath.startsWith("content://")) {
-            try {
-                activity.contentResolver.query(
-                    Uri.parse(modelPath),
-                    arrayOf(OpenableColumns.DISPLAY_NAME),
-                    null, null, null
-                )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
-            } catch (_: Exception) {
-                null
-            } ?: modelPath
-        } else {
-            modelPath
-        }
+        val filename = resolveDisplayName(modelPath)
         return if (filename.lowercase().endsWith(".litertlm")) {
             LiteRtLmInferenceEngine(activity)
         } else {
             LiteRtInferenceEngine(activity)
         }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun resolveDisplayName(modelPath: String): String {
+        if (!modelPath.startsWith("content://")) return modelPath
+        return try {
+            activity.contentResolver.query(
+                Uri.parse(modelPath),
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null, null, null
+            )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        } catch (_: Exception) {
+            null
+        } ?: modelPath
     }
 
     private fun formatErrorMessage(e: Exception, modelPath: String): String {

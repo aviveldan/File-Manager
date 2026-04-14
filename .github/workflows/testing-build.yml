@@ -14,5 +14,6 @@ on:
 
 jobs:
     call-testing-build-workflow:
+        if: github.repository_owner == 'FossifyOrg'
         uses: FossifyOrg/.github/.github/workflows/testing-build.yml@main
         secrets: inherit
