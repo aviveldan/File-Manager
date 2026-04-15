@@ -155,6 +155,7 @@ dependencies {
     ksp(libs.room.compiler)
     detektPlugins(libs.compose.detekt)
 
+    testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.test.runner)
