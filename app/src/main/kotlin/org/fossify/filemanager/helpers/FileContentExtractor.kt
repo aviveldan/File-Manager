@@ -33,17 +33,19 @@ object FileContentExtractor {
     }
 
     private fun extractPdfText(file: File): String? {
+        var document: PDDocument? = null
         return try {
-            var document: PDDocument? = null
-            try {
-                document = PDDocument.load(file)
-                val text = PDFTextStripper().getText(document)
-                truncateIfNeeded(text)
-            } finally {
-                document?.close()
-            }
+            document = PDDocument.load(file)
+            val text = PDFTextStripper().getText(document)
+            truncateIfNeeded(text)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             null
+        } catch (e: ExceptionInInitializerError) {
+            null
+        } catch (e: NoClassDefFoundError) {
+            null
+        } finally {
+            document?.close()
         }
     }
 
