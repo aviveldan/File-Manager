@@ -40,9 +40,9 @@ class ImageContentExtractorTest {
 
     @Test
     fun veryLargeImageIsHeavilyDownsampled() {
-        // 8192×6144 — 8192/2=4096, /4=2048, /8=1024, /16=512, /32=256 <512
-        // so sampleSize should be 8
-        assertEquals(8, ImageContentExtractor.calculateSampleSize(8192, 6144))
+        // 8192×6144 — 8192/2=4096, /4=2048, /8=1024, /16=512 (still >=512), /32=256 <512
+        // so sampleSize should be 16 (8192/16 = 512, which meets the MAX_DIMENSION threshold)
+        assertEquals(16, ImageContentExtractor.calculateSampleSize(8192, 6144))
     }
 
     @Test
