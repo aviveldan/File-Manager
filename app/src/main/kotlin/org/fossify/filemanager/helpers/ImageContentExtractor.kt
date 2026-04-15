@@ -35,7 +35,7 @@ object ImageContentExtractor {
         val height = boundsOptions.outHeight
         if (width <= 0 || height <= 0) return null
 
-        // Calculate inSampleSize — largest power-of-2 that keeps both dimensions >= MAX_DIMENSION
+        // Calculate inSampleSize — largest power-of-2 that keeps the longest side >= MAX_DIMENSION
         val sampleSize = calculateSampleSize(width, height)
 
         // Second pass: decode the actual (down-sampled) bitmap
