@@ -32,6 +32,7 @@ object FileContentExtractor {
         }
     }
 
+    @Suppress("SwallowedException")
     private fun extractPdfText(file: File): String? {
         var document: PDDocument? = null
         return try {
