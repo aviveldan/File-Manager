@@ -148,6 +148,7 @@ dependencies {
     implementation(libs.autofittextview)
     implementation(libs.zip4j)
     implementation(libs.mediapipe.tasks.genai)
+    implementation(libs.mediapipe.tasks.vision)
     implementation(libs.litertlm.android)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.room.runtime)

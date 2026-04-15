@@ -50,6 +50,7 @@ rootshell = { module = "com.github.naveensingh:RootShell", version.ref = "rootsh
 roottools = { module = "com.github.naveensingh:RootTools", version.ref = "roottools" }
 zip4j = { module = "net.lingala.zip4j:zip4j", version.ref = "zip4j" }
 mediapipe-tasks-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipe-genai" }
+mediapipe-tasks-vision = { module = "com.google.mediapipe:tasks-vision", version.ref = "mediapipe-genai" }
 litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
