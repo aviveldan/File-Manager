@@ -147,6 +147,7 @@ dependencies {
     implementation(libs.gestureviews)
     implementation(libs.autofittextview)
     implementation(libs.zip4j)
+    implementation(libs.pdfbox.android)
     implementation(libs.mediapipe.tasks.genai)
     implementation(libs.litertlm.android)
     implementation(libs.kotlinx.coroutines.android)
