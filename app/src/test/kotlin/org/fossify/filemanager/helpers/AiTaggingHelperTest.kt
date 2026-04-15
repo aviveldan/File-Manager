@@ -97,4 +97,16 @@ class AiTaggingHelperTest {
         assertTrue("Should contain truncation marker", prompt.contains("[Truncated]"))
         assertTrue("Should contain content section", prompt.contains("Content:"))
     }
+
+    // --- buildImagePrompt ---
+
+    @Test
+    fun buildImagePromptContainsImageInstruction() {
+        val prompt = AiTaggingHelper.buildImagePrompt()
+
+        assertTrue("Should mention image analysis", prompt.contains("Analyze this image"))
+        assertTrue("Should request 3 tags", prompt.contains("3 descriptive category tags"))
+        assertTrue("Should request comma-separated", prompt.contains("separated by commas"))
+        assertFalse("Should NOT contain filename placeholder", prompt.contains("Filename:"))
+    }
 }

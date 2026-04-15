@@ -43,9 +43,8 @@ class AiTaggingHelper(private val activity: SimpleActivity) {
 
         activity.lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val prompt = buildPrompt(file)
                 val engine = createInferenceEngine(modelPath)
-                val rawResponse = engine.generateResponse(prompt)
+                val rawResponse = runInference(engine, file)
                 val tags = parseTagResponse(rawResponse)
 
                 activity.fileTagDao.insertOrUpdateTags(FileTag(filePath, tags))
@@ -61,6 +60,22 @@ class AiTaggingHelper(private val activity: SimpleActivity) {
                     activity.toast(activity.getString(R.string.ai_tagging_failed, message))
                 }
             }
+        }
+    }
+
+    /**
+     * Selects the correct inference path based on whether the file is a supported image.
+     */
+    private suspend fun runInference(engine: AiInferenceEngine, file: File): String {
+        val bitmap = ImageContentExtractor.extractBitmapForAi(file)
+        return if (bitmap != null) {
+            try {
+                engine.generateResponseForImage(buildImagePrompt(), bitmap)
+            } finally {
+                bitmap.recycle()
+            }
+        } else {
+            engine.generateResponse(buildPrompt(file))
         }
     }
 
@@ -110,6 +125,17 @@ class AiTaggingHelper(private val activity: SimpleActivity) {
                     "Respond with ONLY the 3 tags separated by commas. Do not explain.\n" +
                     "Filename: '${file.name}'"
             }
+        }
+
+        /**
+         * Builds the multimodal prompt for image files. The image bitmap is passed separately
+         * via the vision modality, so the prompt only contains the instruction text.
+         */
+        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+        internal fun buildImagePrompt(): String {
+            return "You are an offline file organizer. Analyze this image. " +
+                "Generate exactly 3 descriptive category tags. " +
+                "Respond with ONLY the 3 tags separated by commas. Do not explain."
         }
 
         /**

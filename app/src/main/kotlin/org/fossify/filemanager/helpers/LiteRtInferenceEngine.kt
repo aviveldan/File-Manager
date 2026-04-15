@@ -1,10 +1,15 @@
 package org.fossify.filemanager.helpers
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.tasks.genai.llminference.GraphOptions
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
+import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession.LlmInferenceSessionOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.fossify.filemanager.interfaces.AiInferenceEngine
@@ -14,6 +19,7 @@ class LiteRtInferenceEngine(private val context: Context) : AiInferenceEngine {
 
     companion object {
         private const val MAX_TOKENS = 512
+        private const val MAX_NUM_IMAGES = 1
         private const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
         private const val PRIMARY_VOLUME = "primary"
         private val DATA_MEDIA_PATH_REGEX = Regex("^/data/media/(\\d+)/")
@@ -24,6 +30,7 @@ class LiteRtInferenceEngine(private val context: Context) : AiInferenceEngine {
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelPath)
             .setMaxTokens(MAX_TOKENS)
+            .setMaxNumImages(MAX_NUM_IMAGES)
             .build()
 
         val llmInference = LlmInference.createFromOptions(context, options)
@@ -33,6 +40,39 @@ class LiteRtInferenceEngine(private val context: Context) : AiInferenceEngine {
             llmInference.close()
         }
     }
+
+    override suspend fun generateResponseForImage(prompt: String, bitmap: Bitmap): String =
+        withContext(Dispatchers.IO) {
+            val modelPath = resolveModelPath()
+            val options = LlmInference.LlmInferenceOptions.builder()
+                .setModelPath(modelPath)
+                .setMaxTokens(MAX_TOKENS)
+                .setMaxNumImages(MAX_NUM_IMAGES)
+                .build()
+
+            val llmInference = LlmInference.createFromOptions(context, options)
+            try {
+                val sessionOptions = LlmInferenceSessionOptions.builder()
+                    .setGraphOptions(
+                        GraphOptions.builder()
+                            .setEnableVisionModality(true)
+                            .build()
+                    )
+                    .build()
+
+                val session = LlmInferenceSession.createFromOptions(llmInference, sessionOptions)
+                try {
+                    session.addQueryChunk(prompt)
+                    val mpImage = BitmapImageBuilder(bitmap).build()
+                    session.addImage(mpImage)
+                    session.generateResponse()
+                } finally {
+                    session.close()
+                }
+            } finally {
+                llmInference.close()
+            }
+        }
 
     private fun resolveModelPath(): String {
         val prefs = context.getSharedPreferences(context.packageName, Context.MODE_PRIVATE)
