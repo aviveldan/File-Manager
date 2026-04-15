@@ -1,5 +1,9 @@
 package org.fossify.filemanager.helpers
 
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.PDPage
+import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
+import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -24,7 +28,27 @@ class FileContentExtractorTest {
         tempDir.deleteRecursively()
     }
 
-    // --- Supported extensions ---
+    // --- Helper to create a PDF with text ---
+
+    private fun createPdfWithText(file: File, text: String) {
+        val document = PDDocument()
+        try {
+            val page = PDPage()
+            document.addPage(page)
+            PDPageContentStream(document, page).use { cs ->
+                cs.beginText()
+                cs.setFont(PDType1Font.HELVETICA, 12f)
+                cs.newLineAtOffset(50f, 700f)
+                cs.showText(text)
+                cs.endText()
+            }
+            document.save(file)
+        } finally {
+            document.close()
+        }
+    }
+
+    // --- Supported text extensions ---
 
     @Test
     fun extractTextFromTxtFile() {
@@ -63,6 +87,54 @@ class FileContentExtractorTest {
         assertEquals(content, result)
     }
 
+    // --- PDF extraction ---
+
+    @Test
+    fun extractTextFromPdfFile() {
+        val file = File(tempDir, "document.pdf")
+        createPdfWithText(file, "Hello PDF World")
+        val result = FileContentExtractor.extractTextForAi(file)
+        assertNotNull(result)
+        assertTrue("Should contain the PDF text", result!!.contains("Hello PDF World"))
+    }
+
+    @Test
+    fun returnsNullForCorruptPdfFile() {
+        val file = File(tempDir, "corrupt.pdf").apply { writeText("not a real pdf") }
+        val result = FileContentExtractor.extractTextForAi(file)
+        assertNull(result)
+    }
+
+    @Test
+    fun truncatesPdfTextExceeding4000Chars() {
+        val longText = "A".repeat(5000)
+        val file = File(tempDir, "big.pdf")
+        createPdfWithText(file, longText)
+        val result = FileContentExtractor.extractTextForAi(file)
+
+        assertNotNull(result)
+        assertTrue("Should end with truncation marker", result!!.endsWith("\n...[Truncated]"))
+        val textPart = result.removeSuffix("\n...[Truncated]")
+        assertEquals(4000, textPart.length)
+    }
+
+    @Test
+    fun doesNotTruncateShortPdfText() {
+        val file = File(tempDir, "short.pdf")
+        createPdfWithText(file, "Short text")
+        val result = FileContentExtractor.extractTextForAi(file)
+
+        assertNotNull(result)
+        assertTrue("Should contain the text", result!!.contains("Short text"))
+        assertTrue("Should NOT contain truncation marker", !result.contains("[Truncated]"))
+    }
+
+    @Test
+    fun returnsNullForNonExistentPdfFile() {
+        val file = File(tempDir, "missing.pdf")
+        assertNull(FileContentExtractor.extractTextForAi(file))
+    }
+
     // --- Unsupported extensions ---
 
     @Test
@@ -78,12 +150,6 @@ class FileContentExtractorTest {
     }
 
     @Test
-    fun returnsNullForPdfFile() {
-        val file = File(tempDir, "document.pdf").apply { writeText("binary data") }
-        assertNull(FileContentExtractor.extractTextForAi(file))
-    }
-
-    @Test
     fun returnsNullForImageFile() {
         val file = File(tempDir, "photo.jpg").apply { writeText("binary data") }
         assertNull(FileContentExtractor.extractTextForAi(file))
@@ -95,7 +161,7 @@ class FileContentExtractorTest {
         assertNull(FileContentExtractor.extractTextForAi(file))
     }
 
-    // --- Truncation ---
+    // --- Truncation (text files) ---
 
     @Test
     fun truncatesFileExceeding4000Chars() {
@@ -156,5 +222,14 @@ class FileContentExtractorTest {
         val file = File(tempDir, "mixed.Json").apply { writeText("""{"a":1}""") }
         val result = FileContentExtractor.extractTextForAi(file)
         assertEquals("""{"a":1}""", result)
+    }
+
+    @Test
+    fun caseInsensitivePdfExtension() {
+        val file = File(tempDir, "document.PDF")
+        createPdfWithText(file, "Uppercase PDF")
+        val result = FileContentExtractor.extractTextForAi(file)
+        assertNotNull(result)
+        assertTrue("Should contain the PDF text", result!!.contains("Uppercase PDF"))
     }
 }
