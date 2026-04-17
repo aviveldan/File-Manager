@@ -54,8 +54,7 @@ class AiTaggingHelper(private val activity: SimpleActivity) {
                     onComplete?.invoke()
                 }
             } catch (e: Exception) {
-                val message = e.message?.lines()?.firstOrNull { it.isNotBlank() }
-                    ?: "Unknown error"
+                val message = formatTaggingError(e.message)
                 withContext(Dispatchers.Main) {
                     activity.toast(activity.getString(R.string.ai_tagging_failed, message))
                 }
@@ -65,27 +64,45 @@ class AiTaggingHelper(private val activity: SimpleActivity) {
 
     /**
      * Selects the correct inference path based on whether the file is a supported image.
+     * Falls back to text-only tagging if the engine does not support vision modality.
      */
+    @Suppress("SwallowedException")
     private suspend fun runInference(engine: AiInferenceEngine, file: File): String {
         val bitmap = ImageContentExtractor.extractBitmapForAi(file)
-        return if (bitmap != null) {
+        if (bitmap != null) {
             try {
-                engine.generateResponseForImage(buildImagePrompt(), bitmap)
+                return engine.generateResponseForImage(buildImagePrompt(), bitmap)
+            } catch (_: UnsupportedOperationException) {
+                // Engine doesn't support vision — fall back to text-only tagging below
             } finally {
                 bitmap.recycle()
             }
-        } else {
-            engine.generateResponse(buildPrompt(file))
         }
+        return engine.generateResponse(buildPrompt(file))
     }
 
     private fun createInferenceEngine(modelPath: String): AiInferenceEngine {
-        val filename = resolveDisplayName(modelPath)
-        return if (filename.lowercase().endsWith(".litertlm")) {
+        return if (isLiteRtLmModel(modelPath)) {
             LiteRtLmInferenceEngine(activity)
         } else {
             LiteRtInferenceEngine(activity)
         }
+    }
+
+    /**
+     * Determines if the model at [modelPath] is a LiteRT-LM model based on its filename.
+     * Checks direct path first, then resolves display name for content URIs, and falls
+     * back to URI path segment inspection for providers where display name query fails.
+     */
+    private fun isLiteRtLmModel(modelPath: String): Boolean {
+        if (modelPath.lowercase().endsWith(".litertlm")) return true
+        if (!modelPath.startsWith("content://")) return false
+
+        val displayName = resolveDisplayName(modelPath)
+        if (displayName.lowercase().endsWith(".litertlm")) return true
+
+        val lastSegment = Uri.parse(modelPath).lastPathSegment
+        return lastSegment != null && lastSegment.lowercase().endsWith(".litertlm")
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -149,6 +166,23 @@ class AiTaggingHelper(private val activity: SimpleActivity) {
                 .filter { it.isNotEmpty() }
                 .take(TAGS_LIMIT)
                 .joinToString(", ")
+        }
+
+        /**
+         * Extracts a user-friendly error message from engine exceptions.
+         * Native initialization failures often contain unhelpful protobuf-style codes
+         * (e.g. "%UNKNOWN%") or stack traces that don't fit in a toast.
+         */
+        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+        internal fun formatTaggingError(rawMessage: String?): String {
+            if (rawMessage == null) return "Unknown error"
+            if (rawMessage.contains("%UNKNOWN%") ||
+                rawMessage.contains("Source Location Trace") ||
+                rawMessage.contains("third_party/")
+            ) {
+                return "Model initialization failed. The model may be incompatible — try a different model file."
+            }
+            return rawMessage.lines().firstOrNull { it.isNotBlank() } ?: rawMessage
         }
     }
 }

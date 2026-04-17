@@ -109,4 +109,30 @@ class AiTaggingHelperTest {
         assertTrue("Should request comma-separated", prompt.contains("separated by commas"))
         assertFalse("Should NOT contain filename placeholder", prompt.contains("Filename:"))
     }
+
+    // --- formatTaggingError ---
+
+    @Test
+    fun formatTaggingErrorReturnsUserFriendlyMessageForUnknown() {
+        val result = AiTaggingHelper.formatTaggingError("Initialization %UNKNOWN% at native layer")
+        assertTrue("Should suggest incompatible model", result.contains("incompatible"))
+    }
+
+    @Test
+    fun formatTaggingErrorReturnsUserFriendlyMessageForStackTrace() {
+        val result = AiTaggingHelper.formatTaggingError("Error\nSource Location Trace:\nthird_party/foo.cc:42")
+        assertTrue("Should suggest incompatible model", result.contains("incompatible"))
+    }
+
+    @Test
+    fun formatTaggingErrorPreservesFirstLineForNormalErrors() {
+        val result = AiTaggingHelper.formatTaggingError("Model file not found at: /path/model.task")
+        assertEquals("Model file not found at: /path/model.task", result)
+    }
+
+    @Test
+    fun formatTaggingErrorHandlesNullMessage() {
+        val result = AiTaggingHelper.formatTaggingError(null)
+        assertEquals("Unknown error", result)
+    }
 }
