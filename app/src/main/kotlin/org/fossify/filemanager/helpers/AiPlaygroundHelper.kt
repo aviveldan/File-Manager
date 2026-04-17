@@ -66,12 +66,27 @@ class AiPlaygroundHelper(private val activity: SimpleActivity) {
     }
 
     private fun createInferenceEngine(modelPath: String): AiInferenceEngine {
-        val filename = resolveDisplayName(modelPath)
-        return if (filename.lowercase().endsWith(".litertlm")) {
+        return if (isLiteRtLmModel(modelPath)) {
             LiteRtLmInferenceEngine(activity)
         } else {
             LiteRtInferenceEngine(activity)
         }
+    }
+
+    /**
+     * Determines if the model at [modelPath] is a LiteRT-LM model based on its filename.
+     * Checks direct path first, then resolves display name for content URIs, and falls
+     * back to URI path segment inspection for providers where display name query fails.
+     */
+    private fun isLiteRtLmModel(modelPath: String): Boolean {
+        if (modelPath.lowercase().endsWith(".litertlm")) return true
+        if (!modelPath.startsWith("content://")) return false
+
+        val displayName = resolveDisplayName(modelPath)
+        if (displayName.lowercase().endsWith(".litertlm")) return true
+
+        val lastSegment = Uri.parse(modelPath).lastPathSegment
+        return lastSegment != null && lastSegment.lowercase().endsWith(".litertlm")
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -91,7 +106,10 @@ class AiPlaygroundHelper(private val activity: SimpleActivity) {
     private fun formatErrorMessage(e: Exception, modelPath: String): String {
         val message = e.message ?: return "Unknown error"
         // Extract a user-friendly summary but keep technical details for debugging
-        val summary = if (message.contains("Source Location Trace") || message.contains("third_party/")) {
+        val summary = if (message.contains("Source Location Trace") ||
+            message.contains("third_party/") ||
+            message.contains("%UNKNOWN%")
+        ) {
             "Failed to load model. Please verify the model file is valid and compatible."
         } else {
             message.lines().firstOrNull { it.isNotBlank() } ?: message

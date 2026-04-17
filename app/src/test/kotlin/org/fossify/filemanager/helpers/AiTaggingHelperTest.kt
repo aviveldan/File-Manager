@@ -97,4 +97,42 @@ class AiTaggingHelperTest {
         assertTrue("Should contain truncation marker", prompt.contains("[Truncated]"))
         assertTrue("Should contain content section", prompt.contains("Content:"))
     }
+
+    // --- buildImagePrompt ---
+
+    @Test
+    fun buildImagePromptContainsImageInstruction() {
+        val prompt = AiTaggingHelper.buildImagePrompt()
+
+        assertTrue("Should mention image analysis", prompt.contains("Analyze this image"))
+        assertTrue("Should request 3 tags", prompt.contains("3 descriptive category tags"))
+        assertTrue("Should request comma-separated", prompt.contains("separated by commas"))
+        assertFalse("Should NOT contain filename placeholder", prompt.contains("Filename:"))
+    }
+
+    // --- formatTaggingError ---
+
+    @Test
+    fun formatTaggingErrorReturnsUserFriendlyMessageForUnknown() {
+        val result = AiTaggingHelper.formatTaggingError("Initialization %UNKNOWN% at native layer")
+        assertTrue("Should suggest incompatible model", result.contains("incompatible"))
+    }
+
+    @Test
+    fun formatTaggingErrorReturnsUserFriendlyMessageForStackTrace() {
+        val result = AiTaggingHelper.formatTaggingError("Error\nSource Location Trace:\nthird_party/foo.cc:42")
+        assertTrue("Should suggest incompatible model", result.contains("incompatible"))
+    }
+
+    @Test
+    fun formatTaggingErrorPreservesFirstLineForNormalErrors() {
+        val result = AiTaggingHelper.formatTaggingError("Model file not found at: /path/model.task")
+        assertEquals("Model file not found at: /path/model.task", result)
+    }
+
+    @Test
+    fun formatTaggingErrorHandlesNullMessage() {
+        val result = AiTaggingHelper.formatTaggingError(null)
+        assertEquals("Unknown error", result)
+    }
 }

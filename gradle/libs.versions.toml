@@ -17,6 +17,7 @@ roottools = "965c154e20"
 zip4j = "2.11.6"
 pdfbox-android = "2.0.27.0"
 mediapipe-genai = "0.10.27"
+mediapipe-core = "0.10.28"
 litertlm = "0.10.0"
 kotlinx-coroutines = "1.10.2"
 room = "2.8.4"
@@ -52,6 +53,7 @@ roottools = { module = "com.github.naveensingh:RootTools", version.ref = "rootto
 zip4j = { module = "net.lingala.zip4j:zip4j", version.ref = "zip4j" }
 pdfbox-android = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfbox-android" }
 mediapipe-tasks-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipe-genai" }
+mediapipe-tasks-core = { module = "com.google.mediapipe:tasks-core", version.ref = "mediapipe-core" }
 litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }

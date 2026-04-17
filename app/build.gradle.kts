@@ -149,6 +149,7 @@ dependencies {
     implementation(libs.zip4j)
     implementation(libs.pdfbox.android)
     implementation(libs.mediapipe.tasks.genai)
+    implementation(libs.mediapipe.tasks.core)
     implementation(libs.litertlm.android)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.room.runtime)
